@@ -6,24 +6,20 @@ LIBD = -L /opt/homebrew/lib/
 endif
 
 CC := gcc
-SRCD := src
-TSTD := tests
-AUXD := tests_aux
 BLDD := build
 BIND := bin
-INCD += -I include
+INCD += -I .
 
-ALL_SRCF := $(shell find $(SRCD) -type f -name '*.c')
-ALL_OBJF := $(patsubst $(SRCD)/%,$(BLDD)/%,$(ALL_SRCF:.c=.o))
-TEST_SRC := $(shell find $(TSTD) -type f -name '*.c')
-TEST_OBJ := $(patsubst $(TSTD)/%,$(BLDD)/%,$(TEST_SRC:.c=.o))
-AUX_SRC := $(shell find $(AUXD) -type f -name '*.c')
+CORE_SRC := hw7.c
+TEST_SRC := unit_tests.c student_tests.c
+AUX_SRC := add01.c add02.c mult01.c mult02.c trans01.c trans02.c free_bst01.c free_bst02.c free_bst03.c execute_script.c
+
+CORE_OBJ := $(patsubst %.c,$(BLDD)/%.o,$(CORE_SRC))
+TEST_OBJ := $(patsubst %.c,$(BLDD)/%.o,$(TEST_SRC))
+AUX_OBJS := $(patsubst %.c,$(BLDD)/%.o,$(AUX_SRC))
+AUX_PGMS := $(patsubst %.c,$(BIND)/%,$(AUX_SRC))
 
 TEST := unit_tests
-EXEC := hw7
-
-AUX_OBJS := $(patsubst $(AUXD)/%,$(BLDD)/%,$(AUX_SRC:.c=.o))
-AUX_PGMS := $(patsubst $(AUXD)/%,$(BIND)/%,$(AUX_SRC:.c=))
 
 CFLAGS := -Wall -Wextra -Wshadow -Wdouble-promotion -Wformat=2 -Wundef -pedantic -g
 DFLAGS := -g -DDEBUG
@@ -40,7 +36,7 @@ TEST_RESULTS := "test_results.json"
 
 MAKEFLAGS := -j
 
-all: setup $(BIND)/$(TEST) $(AUX_PGMS) $(ALL_OBJF)
+all: setup $(BIND)/$(TEST) $(AUX_PGMS)
 
 debug: CFLAGS += $(DFLAGS) $(PRINT_STATEMENTS) 
 debug: all
@@ -49,23 +45,15 @@ setup:
 	@mkdir -p $(BIND)
 	@mkdir -p $(BLDD)
 	
-$(BIND)/$(TEST): $(ALL_OBJF) $(TEST_OBJ) 
-	$(CC) $(ALL_OBJF) $(TEST_OBJ) $(INCD) $(TEST_LIB) $(LIBD) -o $@ $(LIBS)
+$(BIND)/$(TEST): $(CORE_OBJ) $(TEST_OBJ)
+	$(CC) $(CORE_OBJ) $(TEST_OBJ) $(INCD) $(TEST_LIB) $(LIBD) -o $@ $(LIBS)
 
-$(AUX_PGMS): % : $(AUX_OBJS) $(ALL_OBJF) 
-	$(CC) $(BLDD)/$(@F).o $(ALL_OBJF) -o $@ $(LIBS)
+$(AUX_PGMS): $(BIND)/%: $(BLDD)/%.o $(CORE_OBJ)
+	$(CC) $^ -o $@ $(LIBS)
 
-$(BLDD)/%.o: $(AUXD)/%.c 
-	$(CC) $(CFLAGS) $(INCD) -I $(TSTD) -c -o $@ $<
 
-$(BLDD)/%.o: $(TSTD)/%.c
+$(BLDD)/%.o: %.c
 	$(CC) $(CFLAGS) $(INCD) -c -o $@ $<
-
-$(BLDD)/%.o: $(SRCD)/%.c 
-	$(CC) $(CFLAGS) $(INCD) -c -o $@ $<
-
-$(BIND)/$(EXEC): $(ALL_OBJF)
-	$(CC) $(BLDD)/$(EXEC).o -o $@ $(LIBS)
 
 test: 
 	@rm -fr $(TSTD).out
@@ -73,6 +61,6 @@ test:
 	@$(BIND)/$(TEST) --full-stats --verbose --json=$(TEST_RESULTS)
 
 clean:
-	rm -fr $(BLDD) $(BIND) $(AUXD)/*.o $(TSTD).out *.out $(TEST_RESULTS)
+	rm -fr $(BLDD) $(BIND) tests.out *.out $(TEST_RESULTS)
 
 .PHONY: all clean debug setup test
